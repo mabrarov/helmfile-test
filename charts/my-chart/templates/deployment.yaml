@@ -1,0 +1,96 @@
+{{- $nginxConfigDirectory := "/usr/local/etc/nginx" -}}
+{{- $nginxConfigFilename := "nginx.conf" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "my-chart.fullname" . }}
+  labels:
+    {{- include "my-chart.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "my-chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum | quote }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "my-chart.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "my-chart.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - "nginx"
+            - "-c"
+            - {{ printf "%s/%s" $nginxConfigDirectory $nginxConfigFilename | quote }}
+            - "-g"
+            - "daemon off;"
+          env:
+            - name: RESPONSE_PREFIX
+              value: {{ .Values.response.prefix | quote }}
+            - name: RESPONSE_SUFFIX
+              value: {{ .Values.response.suffix | quote }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - mountPath: /var/run
+              name: run
+            - mountPath: /var/cache/nginx
+              name: nginx-cache
+            - mountPath: {{ $nginxConfigDirectory | quote }}
+              name: nginx-config
+              readOnly: true
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: run
+          emptyDir: { }
+        - name: nginx-cache
+          emptyDir: { }
+        - name: nginx-config
+          configMap:
+            name: {{ include "my-chart.fullname" . | quote }}
+            items:
+              - key: nginxConfig
+                path: {{ $nginxConfigFilename | quote }}
+              - key: nginxContent
+                path: {{ include "my-chart.contentFilename" . | quote }}

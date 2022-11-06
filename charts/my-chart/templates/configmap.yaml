@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "my-chart.fullname" . | quote }}
+  labels:
+    {{- include "my-chart.labels" . | nindent 4 }}
+data:
+  nginxConfig: |-
+    load_module modules/ngx_http_js_module.so;
+    worker_processes  1;
+    error_log  /dev/stdout warn;
+    pid        /var/run/nginx.pid;
+    events {
+        worker_connections  1024;
+    }
+    env HOSTNAME;
+    env RESPONSE_PREFIX;
+    env RESPONSE_SUFFIX;
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+        js_import     {{ include "my-chart.contentFilename" . | quote }};
+        real_ip_header    X-Forwarded-For;
+        real_ip_recursive on;
+        set_real_ip_from  0.0.0.0/0;
+        log_format  main  '[access] $remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_forwarded"';
+        access_log  /dev/stdout  main;
+        sendfile        on;
+        keepalive_timeout  65;
+        server {
+            listen       8080;
+            server_name  "";
+            location / {
+                if ($request_method = OPTIONS) {
+                    add_header Content-Length 0;
+                    add_header Content-Type text/plain;
+                    return 200;
+                }
+                root   /usr/share/nginx/html;
+                index  index.html index.htm;
+                location ~ \/index\.html?$ {
+                    default_type 'text/html';
+                    js_content {{ printf "%s.%s" (trimSuffix (include "my-chart.contentFilename" . | ext) (include "my-chart.contentFilename" .)) "http" | quote }};
+                }
+            }
+            error_page   500 502 503 504  /50x.html;
+            location = /50x.html {
+                root   /usr/share/nginx/html;
+            }
+        }
+    }
+  nginxContent: |-
+    function http(r) {
+      var s = "";
+      s += "<!DOCTYPE html>\n";
+      s += "<html>\n";
+      s += "<head>\n";
+      s += "<title>Backend</title>\n";
+      s += "</head>\n";
+      s += "<body>\n";
+      s += process.env.RESPONSE_PREFIX;
+      s += process.env.HOSTNAME;
+      s += process.env.RESPONSE_SUFFIX;
+      s += "\n";
+      s += "</body>\n";
+      s += "</html>\n";
+      r.return(200, s);
+    }
+    export default {http};

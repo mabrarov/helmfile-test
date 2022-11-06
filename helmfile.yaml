@@ -1,0 +1,7 @@
+environments:
+  local: {}
+releases:
+  - name: "my-release"
+    namespace: "myproject"
+    createNamespace: false
+    chart: "charts/my-chart"
