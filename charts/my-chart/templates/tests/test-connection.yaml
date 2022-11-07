@@ -1,15 +1,23 @@
-apiVersion: v1
-kind: Pod
+apiVersion: "v1"
+kind: "Pod"
 metadata:
-  name: "{{ include "my-chart.fullname" . }}-test-connection"
+  name: {{ include "my-chart.testPodName" . | quote }}
   labels:
     {{- include "my-chart.labels" . | nindent 4 }}
   annotations:
-    "helm.sh/hook": test
+    "helm.sh/hook": "test"
 spec:
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   containers:
-    - name: wget
-      image: busybox
-      command: ['wget']
-      args: ['{{ include "my-chart.fullname" . }}:{{ .Values.service.port }}']
-  restartPolicy: Never
+    - name: "wget"
+      image: "busybox"
+      command:
+        - "wget"
+      args:
+        - "-O"
+        - "-"
+        - {{ printf "http://%s:%d/" (include "my-chart.serviceName" .) (.Values.service.port | int) | quote }}
+  restartPolicy: "Never"

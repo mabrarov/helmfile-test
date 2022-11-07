@@ -1,5 +1,5 @@
 {{- if .Values.ingress.enabled -}}
-{{- $fullName := include "my-chart.fullname" . -}}
+{{- $fullName := include "my-chart.ingressName" . -}}
 {{- $svcPort := .Values.service.port -}}
 {{- if and .Values.ingress.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
   {{- if not (hasKey .Values.ingress.annotations "kubernetes.io/ingress.class") }}
@@ -7,15 +7,15 @@
   {{- end }}
 {{- end }}
 {{- if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
-apiVersion: networking.k8s.io/v1
+apiVersion: "networking.k8s.io/v1"
 {{- else if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: "networking.k8s.io/v1beta1"
 {{- else -}}
-apiVersion: extensions/v1beta1
+apiVersion: "extensions/v1beta1"
 {{- end }}
-kind: Ingress
+kind: "Ingress"
 metadata:
-  name: {{ $fullName }}
+  name: {{ $fullName | quote }}
   labels:
     {{- include "my-chart.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
@@ -24,7 +24,7 @@ metadata:
   {{- end }}
 spec:
   {{- if and .Values.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
-  ingressClassName: {{ .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className | quote }}
   {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
@@ -33,7 +33,7 @@ spec:
         {{- range .hosts }}
         - {{ . | quote }}
         {{- end }}
-      secretName: {{ .secretName }}
+      secretName: {{ .secretName | quote }}
     {{- end }}
   {{- end }}
   rules:
@@ -44,16 +44,16 @@ spec:
           {{- range .paths }}
           - path: {{ .path }}
             {{- if and .pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
-            pathType: {{ .pathType }}
+            pathType: {{ .pathType | quote }}
             {{- end }}
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
               service:
-                name: {{ $fullName }}
+                name: {{ include "my-chart.serviceName" $ | quote }}
                 port:
                   number: {{ $svcPort }}
               {{- else }}
-              serviceName: {{ $fullName }}
+              serviceName: {{ include "my-chart.serviceName" $ | quote }}
               servicePort: {{ $svcPort }}
               {{- end }}
           {{- end }}

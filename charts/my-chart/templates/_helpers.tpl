@@ -31,34 +31,58 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
-Common labels
+Common labels.
 */}}
 {{- define "my-chart.labels" -}}
-helm.sh/chart: {{ include "my-chart.chart" . }}
+helm.sh/chart: {{ include "my-chart.chart" . | quote }}
 {{ include "my-chart.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 {{- end }}
 
 {{/*
-Selector labels
+Selector labels.
 */}}
 {{- define "my-chart.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "my-chart.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/name: {{ include "my-chart.name" . | quote }}
+app.kubernetes.io/instance: {{ .Release.Name | quote }}
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Name of config map.
 */}}
-{{- define "my-chart.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "my-chart.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
+{{- define "my-chart.configMapName" -}}
+{{ include "my-chart.fullname" . }}
 {{- end }}
+
+{{/*
+Name of deployment.
+*/}}
+{{- define "my-chart.deploymentName" -}}
+{{ include "my-chart.fullname" . }}
+{{- end }}
+
+{{/*
+Name of service.
+*/}}
+{{- define "my-chart.serviceName" -}}
+{{ include "my-chart.fullname" . }}
+{{- end }}
+
+{{/*
+Name of ingress.
+*/}}
+{{- define "my-chart.ingressName" -}}
+{{ include "my-chart.fullname" . }}
+{{- end }}
+
+{{/*
+Name of test pod.
+*/}}
+{{- define "my-chart.testPodName" -}}
+{{ include "my-chart.fullname" . }}-test
 {{- end }}
 
 {{/*
